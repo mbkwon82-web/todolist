@@ -1,0 +1,832 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+</head>
+<body>
+<title>별빛 육성일기</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Gowun+Batang:wght@400;700&family=Gowun+Dodum&display=swap">
+<style>
+/* Layout: left = daughter's portrait + stat ledger, right = monthly planner (3 ten-day slots), modal for events.
+   Single deliberate night-sky look: ink indigo ground, starlight gold accent, lavender secondary. */
+:root {
+  --ink: #12142a;
+  --panel: #1c1f3d;
+  --panel-2: #262a52;
+  --line: #363b6e;
+  --fg: #ece8f7;
+  --muted: #a3a0c4;
+  --gold: #e9c46a;
+  --gold-soft: #e9c46a33;
+  --lav: #a99be8;
+  --good: #7fd6a6;
+  --bad: #f08a8a;
+  --font-display: "Gowun Batang", "Nanum Myeongjo", serif;
+  --font-body: "Gowun Dodum", "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html, body { min-height: 100%; }
+body {
+  margin: 0;
+  background:
+    radial-gradient(1px 1px at 12% 18%, #fff8 50%, transparent 51%),
+    radial-gradient(1px 1px at 72% 9%, #fff6 50%, transparent 51%),
+    radial-gradient(1.5px 1.5px at 38% 62%, #fff5 50%, transparent 51%),
+    radial-gradient(1px 1px at 88% 44%, #fff7 50%, transparent 51%),
+    radial-gradient(1px 1px at 55% 86%, #fff5 50%, transparent 51%),
+    radial-gradient(1.5px 1.5px at 22% 92%, #e9c46a88 50%, transparent 51%),
+    radial-gradient(ellipse at 80% -10%, #2b2f66 0%, transparent 60%),
+    var(--ink);
+  background-attachment: fixed;
+  color: var(--fg);
+  font-family: var(--font-body);
+  font-size: 15px;
+  line-height: 1.55;
+  padding-block: 18px 40px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+button { font: inherit; color: inherit; cursor: pointer; }
+button:focus-visible, input:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+.wrap { max-width: 1120px; margin: 0 auto; display: grid; gap: 16px; }
+
+/* header */
+.top { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 20px; justify-content: space-between; }
+.brand { font-family: var(--font-display); font-weight: 700; font-size: 1.5rem; letter-spacing: .02em; display: flex; align-items: center; gap: 10px; }
+.brand svg { width: 26px; height: 26px; }
+.date-chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.chip { background: var(--panel); border: 1px solid var(--line); border-radius: 999px; padding: 5px 12px; font-size: .88rem; color: var(--muted); font-variant-numeric: tabular-nums; }
+.chip b { color: var(--fg); font-weight: 400; }
+.chip.gold b { color: var(--gold); }
+
+.main { display: grid; grid-template-columns: 320px minmax(0, 1fr); gap: 16px; align-items: start; }
+@media (max-width: 820px) {
+  .main { grid-template-columns: minmax(0, 1fr); }
+  .main > .profile { display: contents; }
+  .main > .profile > .card:first-child { order: 0; grid-template-columns: minmax(0, 120px) minmax(0, 1fr); align-items: start; }
+  .main > .profile > .card:first-child .portrait { grid-row: span 2; }
+  .main > .profile > .card:first-child .who { flex-direction: column; gap: 0; }
+  .main > .profile > .card:first-child .stats { grid-column: 1 / -1; }
+  .planner { order: 1; }
+  .main > .profile > .card:last-child { order: 2; }
+}
+
+.card { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 16px; }
+.card h2 { font-family: var(--font-display); font-size: 1.05rem; margin: 0 0 10px; font-weight: 700; color: var(--gold); letter-spacing: .03em; }
+
+/* portrait */
+.profile { display: grid; gap: 14px; }
+.portrait { aspect-ratio: 200 / 240; max-width: 100%; border-radius: 12px; overflow: hidden;
+  background: radial-gradient(circle at 50% 35%, #3a3f80 0%, #1a1d3c 75%); border: 1px solid var(--line); }
+.portrait svg { width: 100%; height: 100%; display: block; }
+.who { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+.who .nm { font-family: var(--font-display); font-size: 1.35rem; font-weight: 700; }
+.who .mood { font-size: .85rem; color: var(--muted); }
+
+.stats { display: grid; gap: 6px; }
+.stat { display: grid; grid-template-columns: 4.4em minmax(0, 1fr) 2.8em; align-items: center; gap: 8px; font-size: .88rem; }
+.stat .k { color: var(--muted); }
+.stat .v { text-align: right; font-variant-numeric: tabular-nums; }
+.bar { height: 7px; background: var(--panel-2); border-radius: 4px; overflow: hidden; }
+.bar i { display: block; height: 100%; background: var(--lav); border-radius: 4px; transition: width .5s ease; }
+.stat.stress .bar i { background: var(--bad); }
+.stat.flash .v { color: var(--gold); }
+
+/* planner */
+.planner { display: grid; gap: 14px; }
+.slots { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+.slot { background: var(--panel-2); border: 1px dashed var(--line); border-radius: 12px; padding: 10px; min-height: 84px; text-align: left; display: grid; gap: 4px; align-content: start; }
+.slot.filled { border-style: solid; border-color: var(--lav); }
+.slot.next { border-color: var(--gold); }
+.slot .when { font-size: .78rem; color: var(--muted); letter-spacing: .08em; }
+.slot .what { font-family: var(--font-display); font-weight: 700; }
+.slot .meta { font-size: .8rem; color: var(--muted); }
+.slot .empty { color: var(--muted); font-size: .85rem; }
+
+.tabs { display: flex; gap: 6px; flex-wrap: wrap; }
+.tab { background: transparent; border: 1px solid var(--line); border-radius: 999px; padding: 6px 14px; font-size: .9rem; color: var(--muted); }
+.tab[aria-selected="true"] { background: var(--gold); border-color: var(--gold); color: var(--ink); }
+
+.acts { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 10px; }
+.act { background: var(--panel-2); border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; text-align: left; display: grid; grid-template-columns: 34px minmax(0, 1fr); gap: 4px 10px; align-items: start; transition: border-color .15s, transform .15s; }
+.act:hover:not(:disabled) { border-color: var(--gold); transform: translateY(-1px); }
+.act:disabled { opacity: .45; cursor: not-allowed; }
+.badge { width: 34px; height: 34px; border-radius: 9px; display: grid; place-items: center; font-family: var(--font-display); font-weight: 700; color: var(--ink); font-size: 1rem; grid-row: span 2; }
+.act .nm { font-weight: 700; font-size: .95rem; }
+.act .ds { font-size: .78rem; color: var(--muted); line-height: 1.4; }
+.act .lv { color: var(--gold); font-size: .75rem; margin-left: 4px; }
+
+.actions { display: flex; flex-wrap: wrap; gap: 8px; justify-content: space-between; align-items: center; }
+.actions .grp { display: flex; flex-wrap: wrap; gap: 8px; }
+.btn { background: var(--panel-2); border: 1px solid var(--line); border-radius: 10px; padding: 8px 14px; font-size: .92rem; }
+.btn:hover:not(:disabled) { border-color: var(--lav); }
+.btn:disabled { opacity: .45; cursor: not-allowed; }
+.btn.primary { background: var(--gold); color: var(--ink); border-color: var(--gold); font-weight: 700; }
+.btn.primary:hover:not(:disabled) { filter: brightness(1.08); }
+
+/* scene */
+.scene { display: grid; gap: 12px; }
+.scene-title { display: flex; align-items: center; gap: 12px; }
+.scene-title .badge { grid-row: auto; width: 44px; height: 44px; font-size: 1.25rem; }
+.scene-title .t { font-family: var(--font-display); font-size: 1.25rem; font-weight: 700; }
+.scene-title .s { color: var(--muted); font-size: .85rem; }
+.progress { height: 8px; background: var(--panel-2); border-radius: 4px; overflow: hidden; }
+.progress i { display: block; height: 100%; width: 0; background: linear-gradient(90deg, var(--lav), var(--gold)); }
+.result { min-height: 3.2em; display: grid; gap: 6px; }
+.deltas { display: flex; flex-wrap: wrap; gap: 6px; }
+.d { font-size: .8rem; padding: 2px 8px; border-radius: 999px; background: var(--panel-2); font-variant-numeric: tabular-nums; }
+.d.up { color: var(--good); } .d.down { color: var(--bad); } .d.g { color: var(--gold); }
+
+/* log */
+.log { display: grid; gap: 4px; max-height: 210px; overflow-y: auto; font-size: .84rem; color: var(--muted); }
+.log p { margin: 0; }
+.log p b { color: var(--fg); font-weight: 400; }
+
+/* modal */
+.modal { position: fixed; inset: 0; background: #07081599; display: grid; place-items: center; padding: 16px; z-index: 20; }
+.modal .box { background: var(--panel); border: 1px solid var(--gold); border-radius: 16px; padding: 20px; width: min(560px, 100%); max-height: 90vh; overflow-y: auto; display: grid; gap: 12px; }
+.modal h3 { margin: 0; font-family: var(--font-display); font-size: 1.3rem; color: var(--gold); text-wrap: balance; }
+.modal .body { display: grid; gap: 8px; }
+.modal .body p { margin: 0; }
+.modal .btns { display: flex; flex-wrap: wrap; gap: 8px; justify-content: flex-end; }
+.shop-list { display: grid; gap: 8px; }
+.shop-item { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 4px 10px; align-items: center; background: var(--panel-2); border-radius: 10px; padding: 10px 12px; }
+.shop-item .ds { font-size: .8rem; color: var(--muted); }
+.rank { display: grid; gap: 4px; font-variant-numeric: tabular-nums; }
+.rank div { display: flex; justify-content: space-between; gap: 10px; padding: 4px 8px; border-radius: 6px; }
+.rank .me { background: var(--gold-soft); color: var(--gold); }
+
+/* title & ending */
+.title-screen { max-width: 640px; margin: 6vh auto 0; text-align: center; display: grid; gap: 18px; justify-items: center; }
+.title-screen h1 { font-family: var(--font-display); font-size: clamp(2rem, 7vw, 3.2rem); margin: 0; letter-spacing: .04em; text-wrap: balance; }
+.title-screen h1 span { color: var(--gold); }
+.title-screen .lead { color: var(--muted); max-width: 34em; margin: 0; }
+.title-screen .portrait { width: min(240px, 70vw); }
+.name-row { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; }
+.name-row input { background: var(--panel-2); border: 1px solid var(--line); color: var(--fg); border-radius: 10px; padding: 9px 12px; font: inherit; width: 12em; }
+.how { text-align: left; font-size: .88rem; color: var(--muted); }
+.how ul { margin: 6px 0 0; padding-left: 1.2em; display: grid; gap: 3px; }
+.ending-title { font-family: var(--font-display); font-size: clamp(1.6rem, 5vw, 2.4rem); color: var(--gold); margin: 0; text-wrap: balance; }
+.final-stats { display: grid; grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); gap: 6px; width: 100%; }
+.final-stats div { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 6px 10px; display: flex; justify-content: space-between; font-size: .88rem; font-variant-numeric: tabular-nums; }
+
+.speed { display: inline-flex; align-items: center; gap: 6px; font-size: .85rem; color: var(--muted); }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+
+<div id="app" class="wrap"></div>
+
+<script>
+"use strict";
+/* ============ 데이터 ============ */
+const STATS = [
+  ['hp', '체력'], ['str', '근력'], ['int', '지능'], ['ele', '기품'], ['cha', '매력'],
+  ['sen', '감성'], ['mor', '도덕'], ['com', '전투'], ['mag', '마법'], ['house', '가사']
+];
+const SN = Object.fromEntries(STATS); SN.stress = '스트레스'; SN.gold = '골드';
+const SLOT_NAMES = ['상순', '중순', '하순'];
+const TOTAL_MONTHS = 96;          // 10살 봄 → 18살 봄
+const PENSION = 50;               // 아버지의 기사 연금 (월)
+
+const HUE = { lesson: '#a99be8', job: '#e9c46a', rest: '#7fd6a6', adv: '#f0a07a' };
+
+const ACTS = [
+  // 수업
+  { id: 'sword', cat: 'lesson', badge: '검', name: '검술 도장', cost: 40, stress: 6, gain: { com: [3, 6], str: [1, 2] }, loss: { sen: [0, 1] }, desc: '전투·근력 ↑ / 감성 ↓', ok: ['목검을 휘두르는 자세가 제법 매서워졌다.', '사범님께 "발이 빠르다"는 칭찬을 들었다.'] },
+  { id: 'magic', cat: 'lesson', badge: '마', name: '별의 마법학원', cost: 60, stress: 7, gain: { mag: [3, 6], int: [1, 2] }, loss: {}, desc: '마법·지능 ↑', ok: ['손끝에서 작은 별빛이 피어올랐다.', '주문서의 고대어를 한 줄 해독했다.'] },
+  { id: 'study', cat: 'lesson', badge: '학', name: '학문소', cost: 30, stress: 5, gain: { int: [3, 6], mor: [0, 1] }, loss: {}, desc: '지능 ↑ 도덕 조금 ↑', ok: ['역사 시험에서 만점을 받았다.', '수학 문제를 스스로 풀어냈다.'] },
+  { id: 'manner', cat: 'lesson', badge: '예', name: '예법 교실', cost: 50, stress: 7, gain: { ele: [3, 6], mor: [0, 1] }, loss: {}, desc: '기품 ↑', ok: ['찻잔을 드는 손끝이 우아해졌다.', '귀부인처럼 인사하는 법을 익혔다.'] },
+  { id: 'dance', cat: 'lesson', badge: '무', name: '무용 교실', cost: 45, stress: 5, gain: { cha: [2, 5], hp: [1, 3] }, loss: {}, desc: '매력·체력 ↑', ok: ['빙글빙글, 스텝이 가벼워졌다.', '선생님이 무대 앞줄에 세워주었다.'] },
+  { id: 'art', cat: 'lesson', badge: '화', name: '호숫가 화실', cost: 35, stress: 4, gain: { sen: [3, 6] }, loss: {}, desc: '감성 ↑', ok: ['저녁노을을 그린 그림이 걸렸다.', '색을 섞는 감각이 늘었다.'] },
+  { id: 'temple', cat: 'lesson', badge: '신', name: '신전 학교', cost: 20, stress: 3, gain: { mor: [2, 4], mag: [0, 2] }, loss: {}, desc: '도덕 ↑ 마법 조금 ↑', ok: ['신관님의 이야기에 고개를 끄덕였다.', '기도문을 외워 성가대에 섰다.'] },
+  { id: 'cook', cat: 'lesson', badge: '요', name: '요리 교실', cost: 25, stress: 3, gain: { house: [3, 6] }, loss: {}, desc: '가사 ↑', ok: ['감자 수프가 제법 맛있게 끓었다.', '반죽을 치대는 손이 야무졌다.'] },
+  // 아르바이트
+  { id: 'bakery', cat: 'job', badge: '빵', name: '빵집 일손', pay: 25, check: 'house', stress: 5, gain: { house: [1, 3], hp: [1, 2] }, loss: {}, desc: '가사·체력 ↑ / 기준: 가사' },
+  { id: 'farm', cat: 'job', badge: '밭', name: '농장 품팔이', pay: 30, check: 'str', stress: 6, gain: { str: [2, 3], hp: [2, 3] }, loss: { cha: [0, 2] }, desc: '근력·체력 ↑ / 매력 ↓' },
+  { id: 'library', cat: 'job', badge: '책', name: '도서관 정리', pay: 20, check: 'int', stress: 4, gain: { int: [1, 3], sen: [1, 2] }, loss: { hp: [0, 1] }, desc: '지능·감성 ↑ / 기준: 지능' },
+  { id: 'chapel', cat: 'job', badge: '종', name: '성당 청소', pay: 12, check: 'mor', stress: 3, gain: { mor: [2, 3] }, loss: {}, desc: '도덕 ↑ / 보수 적음' },
+  { id: 'hunter', cat: 'job', badge: '활', name: '사냥꾼 조수', pay: 45, check: 'com', stress: 7, minAge: 12, gain: { com: [1, 3], str: [1, 2] }, loss: { ele: [1, 2] }, desc: '전투·근력 ↑ / 기품 ↓' },
+  { id: 'tavern', cat: 'job', badge: '잔', name: '주점 서빙', pay: 55, check: 'cha', stress: 7, minAge: 13, gain: { cha: [1, 3] }, loss: { mor: [1, 3] }, desc: '매력 ↑ / 도덕 ↓' },
+  { id: 'mason', cat: 'job', badge: '돌', name: '석공 보조', pay: 65, check: 'str', stress: 9, minAge: 13, gain: { str: [2, 4], hp: [1, 2] }, loss: { cha: [1, 2], ele: [1, 2] }, desc: '근력 ↑↑ / 매력·기품 ↓' },
+  { id: 'maid', cat: 'job', badge: '저', name: '귀족 저택 시녀', pay: 55, check: 'ele', stress: 6, minAge: 14, gain: { ele: [1, 3], house: [1, 2] }, loss: {}, desc: '기품·가사 ↑ / 기준: 기품' },
+  // 휴식
+  { id: 'rest', cat: 'rest', badge: '쉼', name: '집에서 쉬기', cost: 0, desc: '스트레스 크게 ↓ 체력 ↑' },
+  { id: 'free', cat: 'rest', badge: '놀', name: '자유 시간', cost: 0, desc: '스트레스 ↓ / 무슨 일이 생길지 몰라요' },
+  { id: 'trip', cat: 'rest', badge: '여', name: '바닷가 여행', cost: 120, desc: '스트레스 대폭 ↓ 감성 ↑' },
+  // 모험
+  { id: 'forest', cat: 'adv', badge: '숲', name: '별똥별 숲 탐험', minAge: 12, desc: '마물과 싸워 골드·전투 경험 / 위험' },
+  { id: 'ruin', cat: 'adv', badge: '탑', name: '무너진 별탑 탐사', minAge: 15, desc: '강한 마물, 큰 보상 / 매우 위험' },
+];
+const ACT = Object.fromEntries(ACTS.map(a => [a.id, a]));
+const CATS = [['lesson', '수업'], ['job', '아르바이트'], ['rest', '휴식'], ['adv', '모험']];
+
+const SHOP = [
+  { id: 'sweet', name: '꿀과자 한 봉지', price: 15, eat: true, eff: { stress: -10 }, desc: '스트레스 -10 (바로 먹음)' },
+  { id: 'book', name: '왕국 백과사전', price: 200, eff: { int: 25 }, desc: '지능 +25' },
+  { id: 'brush', name: '은빛 화구 세트', price: 180, eff: { sen: 25 }, desc: '감성 +25' },
+  { id: 'apron', name: '꽃무늬 앞치마', price: 100, eff: { house: 15 }, desc: '가사 +15' },
+  { id: 'blade', name: '가벼운 철검', price: 250, eff: { com: 25 }, desc: '전투 +25' },
+  { id: 'lace', name: '레이스 드레스', price: 300, outfit: 'lace', eff: { cha: 25, ele: 10 }, desc: '매력 +25 기품 +10 · 옷' },
+  { id: 'robe', name: '별빛 로브', price: 400, outfit: 'robe', eff: { mag: 30 }, desc: '마법 +30 · 옷' },
+  { id: 'armor', name: '가죽 경갑', price: 280, outfit: 'armor', eff: { com: 15, hp: 15 }, desc: '전투 +15 체력 +15 · 옷' },
+];
+
+const CONTESTS = {
+  martial: { name: '추수제 무술 대회', stat: s => s.com + s.str * 0.5, bonus: { com: 15 }, praise: '목검 한 자루로 결승까지 쓸어버렸다!' },
+  beauty:  { name: '별빛 미의 경연',   stat: s => s.cha + s.ele * 0.6, bonus: { cha: 15 }, praise: '무대에 서자 광장이 조용해졌다.' },
+  cook:    { name: '추수 요리 대회',   stat: s => s.house * 1.2 + s.sen * 0.3, bonus: { house: 15 }, praise: '심사위원이 냄비 바닥까지 긁어 먹었다.' },
+  art:     { name: '호수 예술제',      stat: s => s.sen + s.int * 0.4, bonus: { sen: 15 }, praise: '그림 앞에서 사람들이 발을 떼지 못했다.' },
+};
+const RIVALS = ['빵집 딸 미라', '대장장이 아들 토벤', '영주의 영애 엘로이즈', '떠돌이 검사 카야', '견습 수녀 노엘', '악단의 딸 피오나', '상인의 아들 주드'];
+
+const MONSTERS = [
+  { name: '이끼 두꺼비', pow: 25 }, { name: '가시 여우', pow: 70 }, { name: '그림자 늑대', pow: 140 },
+  { name: '돌 골렘', pow: 230 }, { name: '밤하늘 비룡', pow: 360 }, { name: '별을 삼킨 거미', pow: 480 },
+];
+
+const RANDOM_EVENTS = [
+  { t: '길에서 지갑을 주워 주인에게 돌려주었다. 칭찬을 듬뿍 받았다.', eff: { mor: 5 } },
+  { t: '이웃 할머니께 뜨개질을 배웠다.', eff: { house: 4 } },
+  { t: '지붕 위에서 유성이 떨어지는 걸 보며, 별에서 왔다는 자신의 이야기를 떠올렸다.', eff: { sen: 5, stress: 3 } },
+  { t: '친구들과 강가에서 해 질 때까지 놀았다.', eff: { stress: -8, cha: 2 } },
+  { t: '감기에 걸려 약을 지어 왔다. (약값 30G)', eff: { gold: -30, hp: -3 } },
+  { t: '서점 주인이 오래된 마법서를 몰래 보여주었다.', eff: { mag: 4, int: 2 } },
+  { t: '골목 아이들과 주먹다짐이 붙었다. 이기긴 했다.', eff: { com: 3, mor: -3 } },
+  { t: '광장의 음유시인 노래를 따라 불렀다.', eff: { cha: 3, sen: 2 } },
+  { t: '어머니 산소에 꽃을 놓고 왔다. 마음이 조금 차분해졌다.', eff: { mor: 3, stress: -5 } },
+];
+
+const OUTFIT_NAME = { default: '하늘색 원피스', lace: '레이스 드레스', robe: '별빛 로브', armor: '가죽 경갑' };
+
+/* ============ 유틸 ============ */
+const $ = sel => document.querySelector(sel);
+const rnd = (a, b) => Math.floor(Math.random() * (b - a + 1)) + a;
+const pick = arr => arr[Math.floor(Math.random() * arr.length)];
+const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+function josa(word, a, b) { // 받침 여부로 조사 선택
+  const c = word.charCodeAt(word.length - 1);
+  if (c < 0xac00 || c > 0xd7a3) return word + b;
+  return word + (((c - 0xac00) % 28) ? a : b);
+}
+
+/* ============ 상태 ============ */
+let S = null;
+let ui = { screen: 'title', tab: 'lesson', plan: [null, null, null], running: false, fast: false };
+const SAVE_KEY = 'star-daughter-save-v1';
+
+function newGame(name) {
+  return {
+    name: name || '세라', age: 10, month: 4, year: 1023, elapsed: 0, gold: 600,
+    stats: { hp: 30, str: 18, int: 22, ele: 15, cha: 22, sen: 25, mor: 30, com: 5, mag: 8, house: 10 },
+    stress: 0, lessonCnt: {}, owned: {}, outfit: 'default', talked: false,
+    lastPlan: null, wins: {}, log: [], festivalDone: false,
+  };
+}
+function save() { try { localStorage.setItem(SAVE_KEY, JSON.stringify(S)); } catch (e) {} }
+function loadSave() { try { const s = localStorage.getItem(SAVE_KEY); return s ? JSON.parse(s) : null; } catch (e) { return null; } }
+function clearSave() { try { localStorage.removeItem(SAVE_KEY); } catch (e) {} }
+
+function log(html) { S.log.unshift(`<b>${S.year}년 ${S.month}월</b> ${html}`); S.log = S.log.slice(0, 60); }
+
+function apply(delta) {
+  for (const [k, v] of Object.entries(delta)) {
+    if (!v) continue;
+    if (k === 'gold') S.gold = Math.max(0, S.gold + v);
+    else if (k === 'stress') S.stress = clamp(S.stress + v, 0, 100);
+    else S.stats[k] = clamp(S.stats[k] + v, 0, 999);
+  }
+}
+function addTo(d, k, v) { d[k] = (d[k] || 0) + v; }
+function lessonLv(id) { return Math.min(5, Math.floor((S.lessonCnt[id] || 0) / 8)); }
+function season(m) { return m >= 3 && m <= 5 ? '봄' : m <= 8 && m >= 6 ? '여름' : m >= 9 && m <= 11 ? '가을' : '겨울'; }
+function moodOf(st) { return st < 25 ? '방긋방긋' : st < 50 ? '평온함' : st < 75 ? '지쳐 보임' : st < 90 ? '예민함' : '한계 직전'; }
+
+/* ============ 초상화 (SVG) ============ */
+const OUTFITS = {
+  default: { main: '#7fa6d9', shade: '#5f83b8', trim: '#f3f0ff' },
+  lace:    { main: '#f2c6d8', shade: '#d89cb6', trim: '#ffffff' },
+  robe:    { main: '#33317a', shade: '#23205a', trim: '#e9c46a' },
+  armor:   { main: '#8a6a4e', shade: '#6b5039', trim: '#c9b28a' },
+};
+function portrait(st) {
+  const t = clamp((st.age - 10) / 8, 0, 1);
+  const stress = st.stress;
+  const mood = stress < 30 ? 'happy' : stress < 70 ? 'calm' : 'sad';
+  const o = OUTFITS[st.outfit] || OUTFITS.default;
+  const hairLen = 178 + t * 50;
+  const faceRy = 42 + t * 3, faceRx = 38 - t * 2;
+  const hair = '#cfc8f2', hairSh = '#9d93d8', skin = '#f7dccb', skinSh = '#e9c2ad', eye = '#4f63d2';
+  const eyeY = 114 + t * 2;
+  let eyes, mouth, brows = '';
+  if (mood === 'happy') {
+    eyes = `<path d="M76 ${eyeY} Q84 ${eyeY - 8} 92 ${eyeY}" stroke="#3b3570" stroke-width="3" fill="none" stroke-linecap="round"/>
+            <path d="M108 ${eyeY} Q116 ${eyeY - 8} 124 ${eyeY}" stroke="#3b3570" stroke-width="3" fill="none" stroke-linecap="round"/>`;
+    mouth = `<path d="M92 ${135 + t * 3} Q100 ${143 + t * 3} 108 ${135 + t * 3}" stroke="#b5566a" stroke-width="2.5" fill="#e98a9a" stroke-linecap="round"/>`;
+  } else {
+    const ry = mood === 'sad' ? 6 : 7.5;
+    eyes = [84, 116].map(x => `<ellipse cx="${x}" cy="${eyeY}" rx="5.5" ry="${ry}" fill="${eye}"/>
+            <ellipse cx="${x}" cy="${eyeY + 1}" rx="3" ry="${ry - 3}" fill="#2a2f78"/>
+            <circle cx="${x + 2}" cy="${eyeY - 3}" r="1.8" fill="#fff"/>`).join('');
+    if (mood === 'sad') {
+      brows = `<path d="M76 ${eyeY - 13} L91 ${eyeY - 10}" stroke="${hairSh}" stroke-width="2.5" stroke-linecap="round"/>
+               <path d="M124 ${eyeY - 13} L109 ${eyeY - 10}" stroke="${hairSh}" stroke-width="2.5" stroke-linecap="round"/>`;
+      mouth = `<path d="M94 ${139 + t * 3} Q100 ${134 + t * 3} 106 ${139 + t * 3}" stroke="#b5566a" stroke-width="2.5" fill="none" stroke-linecap="round"/>`;
+    } else {
+      mouth = `<path d="M95 ${136 + t * 3} Q100 ${139 + t * 3} 105 ${136 + t * 3}" stroke="#b5566a" stroke-width="2.5" fill="none" stroke-linecap="round"/>`;
+    }
+  }
+  let outfitDetail = '';
+  if (st.outfit === 'lace') outfitDetail = [70, 85, 100, 115, 130].map(x => `<circle cx="${x}" cy="190" r="7" fill="${o.trim}"/>`).join('');
+  else if (st.outfit === 'robe') outfitDetail = `<path d="M100 186 L84 240 M100 186 L116 240" stroke="${o.trim}" stroke-width="2"/>` +
+    [[60, 220], [140, 214], [74, 232], [128, 234]].map(([x, y]) => `<circle cx="${x}" cy="${y}" r="1.8" fill="${o.trim}"/>`).join('');
+  else if (st.outfit === 'armor') outfitDetail = `<path d="M50 212 Q100 198 150 212" stroke="${o.trim}" stroke-width="3" fill="none"/><path d="M56 228 Q100 214 144 228" stroke="${o.trim}" stroke-width="3" fill="none"/>`;
+  else outfitDetail = `<path d="M84 186 Q100 204 116 186" fill="${o.trim}"/><path d="M92 198 L100 192 L108 198 L100 204Z" fill="#e9c46a"/>`;
+  const ribbon = st.age >= 15 ? `<path d="M62 70 L50 60 L52 78 Z M62 70 L48 80 L60 84 Z" fill="#e98aa6"/>` : '';
+  return `<svg viewBox="0 0 200 240" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="${esc(st.name)}의 초상, ${st.age}살, ${moodOf(st.stress)}">
+  <g opacity=".7" fill="#fff">
+    <circle cx="22" cy="30" r="1.2"/><circle cx="176" cy="22" r="1.5"/><circle cx="160" cy="90" r="1"/><circle cx="30" cy="120" r="1"/>
+  </g>
+  <path d="M54 102 Q46 36 100 34 Q154 36 146 102 L${158 + t * 6} ${hairLen} Q100 ${hairLen + 14} ${42 - t * 6} ${hairLen} Z" fill="${hairSh}"/>
+  <path d="M34 240 Q40 194 78 184 L122 184 Q160 194 166 240 Z" fill="${o.main}"/>
+  <path d="M34 240 Q40 194 78 184 L84 186 Q58 200 54 240 Z" fill="${o.shade}"/>
+  ${outfitDetail}
+  <rect x="90" y="146" width="20" height="42" rx="6" fill="${skinSh}"/>
+  <ellipse cx="100" cy="110" rx="${faceRx}" ry="${faceRy}" fill="${skin}"/>
+  <path d="M60 102 Q54 140 60 ${168 + t * 20} L70 ${158 + t * 16} Q64 128 68 98 Z" fill="${hair}"/>
+  <path d="M140 102 Q146 140 140 ${168 + t * 20} L130 ${158 + t * 16} Q136 128 132 98 Z" fill="${hair}"/>
+  <path d="M58 106 Q54 54 100 52 Q146 54 142 106 Q134 82 120 74 Q114 90 102 88 Q92 78 86 74 Q72 84 58 106 Z" fill="${hair}"/>
+  ${ribbon}
+  <path d="M136 58 l3.2 6.6 7.2 1 -5.2 5 1.3 7.2 -6.5 -3.4 -6.5 3.4 1.3 -7.2 -5.2 -5 7.2 -1z" fill="#e9c46a" stroke="#fff3c4" stroke-width=".8"/>
+  ${brows}${eyes}
+  <ellipse cx="76" cy="${eyeY + 14}" rx="7" ry="4" fill="#f2a0a8" opacity="${mood === 'sad' ? .25 : .55}"/>
+  <ellipse cx="124" cy="${eyeY + 14}" rx="7" ry="4" fill="#f2a0a8" opacity="${mood === 'sad' ? .25 : .55}"/>
+  ${mouth}
+</svg>`;
+}
+const STAR_ICON = `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2 l2.9 6.2 6.8 .8 -5 4.7 1.3 6.7 -6 -3.3 -6 3.3 1.3 -6.7 -5 -4.7 6.8 -.8z" fill="#e9c46a"/></svg>`;
+
+/* ============ 렌더 ============ */
+function render() {
+  const app = $('#app');
+  if (ui.screen === 'title') return renderTitle(app);
+  if (ui.screen === 'ending') return renderEnding(app);
+  renderGame(app);
+}
+
+function renderTitle(app) {
+  const saved = loadSave();
+  const demo = newGame('세라'); demo.age = 12;
+  app.innerHTML = `
+  <div class="title-screen">
+    <div class="portrait">${portrait(demo)}</div>
+    <h1>별빛 <span>육성일기</span></h1>
+    <p class="lead">유성이 떨어진 밤, 은퇴한 기사였던 당신의 집 앞에 열 살 소녀가 서 있었습니다.
+      앞으로 8년. 그녀가 어떤 어른이 될지는 매달 당신이 짜는 일정에 달려 있습니다.</p>
+    <div class="name-row">
+      <label for="nm" class="speed">딸의 이름</label>
+      <input id="nm" maxlength="8" value="세라" autocomplete="off">
+      <button class="btn primary" id="startBtn">새로 시작</button>
+      ${saved ? `<button class="btn" id="contBtn">이어하기 · ${esc(saved.name)} ${saved.age}살</button>` : ''}
+    </div>
+    <div class="card how">
+      <h2>이렇게 키워요</h2>
+      <ul>
+        <li>한 달은 상순·중순·하순 세 칸. 칸마다 수업, 아르바이트, 휴식, 모험 중 하나를 넣습니다.</li>
+        <li>수업은 돈이 들고 능력이 오릅니다. 같은 수업을 꾸준히 들으면 레벨이 올라 효과가 커집니다.</li>
+        <li>아르바이트로 돈을 법니다. 나이가 들수록 보수가 오르고, 기준 능력이 높을수록 잘 해냅니다.</li>
+        <li>스트레스가 쌓이면 수업을 빼먹고, 100이 되면 앓아눕습니다. 쉬게 해주세요.</li>
+        <li>매년 10월엔 추수제 대회가 열립니다. 18살 봄, 그녀의 미래가 정해집니다.</li>
+      </ul>
+    </div>
+  </div>`;
+  $('#startBtn').onclick = () => {
+    const name = $('#nm').value.trim() || '세라';
+    S = newGame(name); ui.plan = [null, null, null]; ui.screen = 'game';
+    log(`${esc(josa(name, '과', '와'))} 함께하는 첫 봄이 시작되었다.`);
+    save(); render();
+    showModal('별에서 온 아이', `<p>"…여기가, 내가 살 집이에요?"</p>
+      <p>${esc(josa(name, '은', '는'))} 낡은 망토 자락을 꼭 쥔 채 당신을 올려다봅니다. 머리카락엔 작은 별 모양 핀이 반짝입니다.</p>
+      <p>먼저 이번 달 일정 세 칸을 채워보세요.</p>`, [{ label: '잘 부탁해', primary: true }]);
+  };
+  $('#nm').onkeydown = e => { if (e.key === 'Enter') $('#startBtn').click(); };
+  if (saved) $('#contBtn').onclick = () => { S = saved; ui.plan = [null, null, null]; ui.screen = S.elapsed >= TOTAL_MONTHS ? 'ending' : 'game'; render(); };
+}
+
+function statRows(flash = {}) {
+  const rows = STATS.map(([k, n]) => `
+    <div class="stat${flash[k] ? ' flash' : ''}"><span class="k">${n}</span>
+      <span class="bar"><i style="width:${Math.min(100, S.stats[k] / 5)}%"></i></span>
+      <span class="v">${S.stats[k]}</span></div>`).join('');
+  return rows + `<div class="stat stress${flash.stress ? ' flash' : ''}"><span class="k">스트레스</span>
+      <span class="bar"><i style="width:${S.stress}%"></i></span><span class="v">${S.stress}</span></div>`;
+}
+
+function renderGame(app) {
+  const left = TOTAL_MONTHS - S.elapsed;
+  app.innerHTML = `
+  <header class="top">
+    <div class="brand">${STAR_ICON}별빛 육성일기</div>
+    <div class="date-chips">
+      <span class="chip">왕국력 <b>${S.year}년 ${S.month}월</b> · ${season(S.month)}</span>
+      <span class="chip">남은 시간 <b>${Math.floor(left / 12)}년 ${left % 12}개월</b></span>
+      <span class="chip gold">소지금 <b id="goldv">${S.gold.toLocaleString()} G</b></span>
+    </div>
+  </header>
+  <div class="main">
+    <aside class="profile">
+      <div class="card profile">
+        <div class="portrait" id="portrait">${portrait(S)}</div>
+        <div class="who"><span class="nm">${esc(S.name)}</span><span class="mood">${S.age}살 · ${moodOf(S.stress)} · ${OUTFIT_NAME[S.outfit]}</span></div>
+        <div class="stats" id="stats">${statRows()}</div>
+      </div>
+      <div class="card"><h2>일기장</h2><div class="log" id="log">${S.log.map(l => `<p>${l}</p>`).join('')}</div></div>
+    </aside>
+    <section class="card planner" id="planner"></section>
+  </div>`;
+  renderPlanner();
+}
+
+function refreshSide(flash) {
+  $('#stats').innerHTML = statRows(flash);
+  $('#portrait').innerHTML = portrait(S);
+  $('#goldv').textContent = S.gold.toLocaleString() + ' G';
+  $('.who .mood').textContent = `${S.age}살 · ${moodOf(S.stress)} · ${OUTFIT_NAME[S.outfit]}`;
+  $('#log').innerHTML = S.log.map(l => `<p>${l}</p>`).join('');
+}
+
+function actAvailable(a) {
+  if (a.minAge && S.age < a.minAge) return `${a.minAge}살부터`;
+  return '';
+}
+function actMeta(a) {
+  if (a.cat === 'lesson') return `${a.cost}G`;
+  if (a.cat === 'job') return `약 ${jobPay(a, true)}G 벌이`;
+  if (a.id === 'trip') return '120G';
+  return a.cat === 'adv' ? '보상 불확실' : '무료';
+}
+function jobPay(a, base) { return Math.round(a.pay * (1 + (S.age - 10) * 0.1)); }
+
+function renderPlanner() {
+  const p = $('#planner');
+  const nextIdx = ui.plan.indexOf(null);
+  const planCost = ui.plan.reduce((s, id) => s + (id ? (ACT[id].cost || 0) : 0), 0);
+  const acts = ACTS.filter(a => a.cat === ui.tab);
+  p.innerHTML = `
+    <h2>${S.month}월 일정</h2>
+    <div class="slots">
+      ${ui.plan.map((id, i) => {
+        const a = id && ACT[id];
+        return `<button class="slot${a ? ' filled' : ''}${i === nextIdx ? ' next' : ''}" data-slot="${i}" aria-label="${SLOT_NAMES[i]} ${a ? a.name + ', 눌러서 비우기' : '비어 있음'}">
+          <span class="when">${SLOT_NAMES[i]} · ${i * 10 + 1}~${i === 2 ? '말' : (i + 1) * 10}일</span>
+          ${a ? `<span class="what">${a.name}</span><span class="meta">${actMeta(a)} · 눌러서 비우기</span>` : `<span class="empty">아래에서 고르세요</span>`}
+        </button>`;
+      }).join('')}
+    </div>
+    <div class="tabs" role="tablist">
+      ${CATS.map(([k, n]) => `<button class="tab" role="tab" aria-selected="${ui.tab === k}" data-tab="${k}">${n}</button>`).join('')}
+    </div>
+    <div class="acts">
+      ${acts.map(a => {
+        const why = actAvailable(a);
+        const lv = a.cat === 'lesson' ? lessonLv(a.id) : 0;
+        return `<button class="act" data-act="${a.id}" ${why || nextIdx < 0 ? 'disabled' : ''}>
+          <span class="badge" style="background:${HUE[a.cat]}">${a.badge}</span>
+          <span class="nm">${a.name}${a.cat === 'lesson' ? `<span class="lv">Lv${lv}</span>` : ''}</span>
+          <span class="ds">${why ? why + ' · ' : ''}${actMeta(a)} · ${a.desc}</span>
+        </button>`;
+      }).join('')}
+    </div>
+    <div class="actions">
+      <div class="grp">
+        <button class="btn" id="talkBtn" ${S.talked ? 'disabled' : ''}>대화하기${S.talked ? ' (이번 달 완료)' : ''}</button>
+        <button class="btn" id="shopBtn">상점</button>
+        <button class="btn" id="repeatBtn" ${S.lastPlan ? '' : 'disabled'}>지난달 일정 반복</button>
+      </div>
+      <div class="grp">
+        <label class="speed"><input type="checkbox" id="fastChk" ${ui.fast ? 'checked' : ''}> 빠르게</label>
+        <button class="btn primary" id="goBtn" ${nextIdx >= 0 ? 'disabled' : ''}>이번 달 시작 ${planCost ? `· 수업료 ${planCost}G` : ''}</button>
+      </div>
+    </div>
+    <p class="speed" style="margin:0">수업료는 그 열흘이 시작될 때 냅니다. 매달 말 아버지의 기사 연금 ${PENSION}G가 들어옵니다.</p>`;
+  p.querySelectorAll('[data-slot]').forEach(b => b.onclick = () => { ui.plan[+b.dataset.slot] = null; renderPlanner(); });
+  p.querySelectorAll('[data-tab]').forEach(b => b.onclick = () => { ui.tab = b.dataset.tab; renderPlanner(); });
+  p.querySelectorAll('[data-act]').forEach(b => b.onclick = () => {
+    const i = ui.plan.indexOf(null); if (i < 0) return;
+    ui.plan[i] = b.dataset.act; renderPlanner();
+  });
+  $('#talkBtn').onclick = openTalk;
+  $('#shopBtn').onclick = openShop;
+  $('#repeatBtn').onclick = () => {
+    ui.plan = S.lastPlan.map(id => (ACT[id] && !actAvailable(ACT[id])) ? id : null); renderPlanner();
+  };
+  $('#fastChk').onchange = e => { ui.fast = e.target.checked; };
+  $('#goBtn').onclick = runMonth;
+}
+
+/* ============ 모달 ============ */
+function showModal(title, html, buttons) {
+  return new Promise(resolve => {
+    const m = document.createElement('div');
+    m.className = 'modal';
+    m.innerHTML = `<div class="box" role="dialog" aria-modal="true" aria-label="${esc(title)}"><h3>${title}</h3><div class="body">${html}</div><div class="btns"></div></div>`;
+    const btns = m.querySelector('.btns');
+    (buttons || [{ label: '확인', primary: true }]).forEach(b => {
+      const el = document.createElement('button');
+      el.className = 'btn' + (b.primary ? ' primary' : '');
+      el.textContent = b.label;
+      if (b.disabled) el.disabled = true;
+      el.onclick = () => { m.remove(); if (b.fn) b.fn(); resolve(b.value); };
+      btns.appendChild(el);
+    });
+    document.body.appendChild(m);
+    const first = btns.querySelector('.primary') || btns.querySelector('button');
+    if (first) first.focus();
+    m._resolve = resolve;
+  });
+}
+function deltaChips(d) {
+  return `<div class="deltas">${Object.entries(d).filter(([, v]) => v).map(([k, v]) => {
+    const good = k === 'stress' ? v < 0 : v > 0;
+    return `<span class="d ${k === 'gold' ? 'g' : good ? 'up' : 'down'}">${SN[k]} ${v > 0 ? '+' : ''}${v}${k === 'gold' ? 'G' : ''}</span>`;
+  }).join('')}</div>`;
+}
+
+function openTalk() {
+  const n = S.name;
+  showModal(`${esc(josa(n, '과', '와'))} 대화`, `<p>저녁 식탁. ${esc(josa(n, '이', '가'))} 수프를 휘저으며 당신의 눈치를 봅니다.</p>`, [
+    { label: '칭찬해 준다', primary: true, fn: () => talk('praise') },
+    { label: '따끔하게 꾸짖는다', fn: () => talk('scold') },
+    { label: `용돈을 준다 (30G)`, disabled: S.gold < 30, fn: () => talk('allow') },
+    { label: '그만두기' },
+  ]);
+}
+function talk(kind) {
+  let d, t;
+  if (kind === 'praise') { d = { stress: -8, cha: 1 }; t = `"정말? 헤헤…" ${esc(josa(S.name, '이', '가'))} 귀까지 빨개졌다.`; }
+  else if (kind === 'scold') { d = { mor: 5, stress: 8 }; t = `"…알았어요." 입술을 삐죽였지만 고개를 끄덕였다.`; }
+  else { d = { gold: -30, stress: -12, mor: -1 }; t = `"고마워요, 아빠!" 시장으로 뛰어나갔다.`; }
+  apply(d); S.talked = true; log(t); save(); refreshSide(d); renderPlanner();
+  showModal('대화', `<p>${t}</p>${deltaChips(d)}`);
+}
+
+function openShop() {
+  const list = SHOP.map(it => {
+    const owned = S.owned[it.id];
+    let btn;
+    if (it.outfit && owned) btn = S.outfit === it.outfit ? `<button class="btn" disabled>입는 중</button>` : `<button class="btn" data-wear="${it.outfit}">입히기</button>`;
+    else if (owned && !it.eat) btn = `<button class="btn" disabled>보유</button>`;
+    else btn = `<button class="btn primary" data-buy="${it.id}" ${S.gold < it.price ? 'disabled' : ''}>${it.price}G</button>`;
+    return `<div class="shop-item"><div><b>${it.name}</b><div class="ds">${it.desc}</div></div>${btn}</div>`;
+  }).join('');
+  const wearDefault = S.outfit !== 'default' ? `<div class="shop-item"><div><b>하늘색 원피스</b><div class="ds">처음 입고 온 옷</div></div><button class="btn" data-wear="default">입히기</button></div>` : '';
+  showModal('시장 거리 상점', `<p class="speed">소지금 ${S.gold.toLocaleString()}G</p><div class="shop-list">${list}${wearDefault}</div>`, [{ label: '나가기' }]);
+  const box = document.querySelector('.modal:last-child');
+  box.querySelectorAll('[data-buy]').forEach(b => b.onclick = () => {
+    const it = SHOP.find(x => x.id === b.dataset.buy);
+    if (S.gold < it.price) return;
+    S.gold -= it.price; apply(it.eff);
+    if (!it.eat) S.owned[it.id] = true;
+    if (it.outfit) S.outfit = it.outfit;
+    log(`상점에서 <b>${it.name}</b>${it.eat ? '을 사 먹었다.' : '을 샀다.'}`);
+    save(); refreshSide(it.eff); box.remove(); openShop();
+  });
+  box.querySelectorAll('[data-wear]').forEach(b => b.onclick = () => {
+    S.outfit = b.dataset.wear; save(); refreshSide({}); box.remove(); openShop();
+  });
+}
+
+/* ============ 한 달 진행 ============ */
+function runLesson(a) {
+  const lines = [], d = {};
+  if (S.gold < a.cost) { lines.push(`수업료 ${a.cost}G가 없어 ${a.name}에 가지 못하고 집에 있었다.`); d.stress = -4; return { lines, d }; }
+  d.gold = -a.cost;
+  const lv = lessonLv(a.id), mult = 1 + lv * 0.2;
+  const ok = Math.random() < clamp(0.93 - S.stress / 230, 0.3, 0.95);
+  const f = ok ? mult : mult * 0.35;
+  for (const [k, [lo, hi]] of Object.entries(a.gain)) addTo(d, k, Math.max(ok && hi ? 1 : 0, Math.round(rnd(lo, hi) * f)));
+  for (const [k, [lo, hi]] of Object.entries(a.loss)) addTo(d, k, -rnd(lo, hi));
+  addTo(d, 'stress', a.stress);
+  S.lessonCnt[a.id] = (S.lessonCnt[a.id] || 0) + 1;
+  lines.push(ok ? pick(a.ok) : pick(['수업 내내 꾸벅꾸벅 졸았다.', '딴생각을 하다 선생님께 혼났다.', '오늘은 영 집중이 안 됐다.']));
+  if (lessonLv(a.id) > lv) lines.push(`<b>${a.name} 레벨이 ${lessonLv(a.id)}로 올랐다!</b> 앞으로 더 많이 배운다.`);
+  return { lines, d };
+}
+function runJob(a) {
+  const lines = [], d = {};
+  const stat = S.stats[a.check];
+  const ok = Math.random() < clamp(0.42 + stat / 260 - S.stress / 230, 0.15, 0.95);
+  const pay = Math.round(jobPay(a) * (ok ? 1 : 0.4));
+  d.gold = pay;
+  const f = ok ? 1 : 0.5;
+  for (const [k, [lo, hi]] of Object.entries(a.gain)) addTo(d, k, Math.round(rnd(lo, hi) * f));
+  for (const [k, [lo, hi]] of Object.entries(a.loss)) addTo(d, k, -rnd(lo, hi));
+  addTo(d, 'stress', a.stress);
+  lines.push(ok ? pick(['주인이 "다음에도 와 달라"며 웃었다.', '일을 척척 해내 품삯을 다 받았다.', '손님들에게 칭찬을 들었다.'])
+                : pick(['실수를 연발해 품삯이 깎였다.', '접시를 깨뜨려 혼이 났다.', '힘에 부쳐 일을 다 끝내지 못했다.']));
+  return { lines, d };
+}
+function runRest(a) {
+  const lines = [], d = {};
+  if (a.id === 'rest') { d.stress = -rnd(16, 22); d.hp = rnd(1, 3); lines.push(pick(['늦잠을 자고 햇볕 아래서 뒹굴었다.', '고양이와 하루 종일 낮잠을 잤다.'])); }
+  else if (a.id === 'trip') {
+    if (S.gold < 120) { d.stress = -10; lines.push('여행 경비가 모자라 동네 언덕에 소풍을 다녀왔다.'); return { lines, d }; }
+    d.gold = -120; d.stress = -rnd(35, 45); d.sen = rnd(3, 6); d.hp = rnd(2, 4);
+    lines.push(pick(['처음 본 바다에 한참을 서 있었다.', '조개껍데기를 한 주머니 주워 왔다.']));
+  } else {
+    d.stress = -rnd(8, 12);
+    if (Math.random() < 0.6) { const ev = pick(RANDOM_EVENTS); lines.push(ev.t); for (const [k, v] of Object.entries(ev.eff)) addTo(d, k, v); }
+    else lines.push(pick(['광장을 어슬렁거리며 군것질을 했다.', '들판에서 꽃반지를 만들었다.']));
+  }
+  return { lines, d };
+}
+function runAdv(a) {
+  const lines = [], d = { stress: 4 };
+  const s = S.stats;
+  const power = s.com + s.str * 0.4 + s.mag * 0.6 + s.hp * 0.2;
+  const tierBase = a.id === 'ruin' ? 2 : 0;
+  const tierMax = Math.min(MONSTERS.length - 1, tierBase + Math.floor((S.age - 10) / 2));
+  const fights = a.id === 'ruin' ? 3 : 2;
+  for (let i = 0; i < fights; i++) {
+    const m = MONSTERS[rnd(tierBase, tierMax)];
+    const p = clamp(power / (power + m.pow) * 1.25, 0.08, 0.95);
+    if (Math.random() < p) {
+      const g = rnd(15, 40) * (MONSTERS.indexOf(m) + 1);
+      addTo(d, 'gold', g); addTo(d, 'com', rnd(1, 3)); addTo(d, 'mag', rnd(0, 2));
+      lines.push(`<b>${m.name}</b>${josa(m.name, '을', '를').slice(m.name.length)} 물리쳤다! (${g}G)`);
+    } else {
+      addTo(d, 'hp', -rnd(2, 5)); addTo(d, 'stress', rnd(6, 10));
+      lines.push(`<b>${m.name}</b>에게 쫓겨 도망쳤다…`);
+      break;
+    }
+  }
+  if (Math.random() < (a.id === 'ruin' ? 0.3 : 0.15)) { const g = a.id === 'ruin' ? 300 : 100; addTo(d, 'gold', g); addTo(d, 'sen', 3); lines.push(`덤불 속에서 반짝이는 별의 조각을 주웠다. (${g}G)`); }
+  return { lines, d };
+}
+
+async function runSlot(i, id) {
+  const a = ACT[id];
+  const p = $('#planner');
+  const dur = ui.fast ? 250 : 1100;
+  p.innerHTML = `
+    <div class="scene">
+      <span class="when speed">${S.month}월 ${SLOT_NAMES[i]}</span>
+      <div class="scene-title"><span class="badge" style="background:${HUE[a.cat]}">${a.badge}</span>
+        <div><div class="t">${a.name}</div><div class="s">${esc(S.name)} · ${S.age}살</div></div></div>
+      <div class="progress"><i id="prog"></i></div>
+      <div class="result" id="result"><span class="speed">열흘이 지나가는 중…</span></div>
+    </div>`;
+  const prog = $('#prog');
+  prog.animate([{ width: '0%' }, { width: '100%' }], { duration: dur, fill: 'forwards', easing: 'ease-in-out' });
+  await sleep(dur);
+
+  let res;
+  if (S.stress >= 100) {
+    res = { lines: [`${esc(josa(S.name, '이', '가'))} 열이 펄펄 끓어 앓아누웠다. 의원을 불렀다. (40G)`], d: { stress: -35, gold: -40, hp: -2 }, sick: true };
+  } else if ((a.cat === 'lesson' || a.cat === 'job') && S.stress >= 80 && Math.random() < 0.4) {
+    res = { lines: [`${a.name}에 간다더니… 몰래 빠져나가 하루 종일 놀다 왔다.`], d: { stress: -10, mor: -2 } };
+  } else {
+    res = a.cat === 'lesson' ? runLesson(a) : a.cat === 'job' ? runJob(a) : a.cat === 'rest' ? runRest(a) : runAdv(a);
+  }
+  apply(res.d);
+  log(`${SLOT_NAMES[i]} ${a.name}: ${res.lines[0]}`);
+  refreshSide(res.d);
+  $('#result').innerHTML = res.lines.map(l => `<p style="margin:0">${l}</p>`).join('') + deltaChips(res.d);
+  await sleep(ui.fast ? 450 : 1500);
+  return res;
+}
+
+async function runMonth() {
+  if (ui.running || ui.plan.includes(null)) return;
+  ui.running = true;
+  const plan = ui.plan.slice();
+  S.lastPlan = plan.slice();
+  for (let i = 0; i < 3; i++) {
+    const r = await runSlot(i, plan[i]);
+    if (r.sick) { for (let j = i + 1; j < 3; j++) log(`${SLOT_NAMES[j]} 몸져누워 쉬었다.`); S.stress = clamp(S.stress - 15 * (2 - i), 0, 100); break; }
+  }
+  await endOfMonth();
+  ui.running = false;
+}
+
+async function endOfMonth() {
+  apply({ gold: PENSION });
+  // 랜덤 이벤트
+  if (Math.random() < 0.22) {
+    const ev = pick(RANDOM_EVENTS); apply(ev.eff); log(ev.t); refreshSide(ev.eff);
+    await showModal('이달의 일', `<p>${ev.t}</p>${deltaChips(ev.eff)}`);
+  }
+  if (S.month === 10) await festival();
+
+  // 다음 달
+  S.month++; S.elapsed++; S.talked = false;
+  if (S.month > 12) { S.month = 1; S.year++; }
+  ui.plan = [null, null, null];
+
+  if (S.month === 4) {
+    S.age++;
+    if (S.elapsed >= TOTAL_MONTHS) { save(); ui.screen = 'ending'; render(); return; }
+    log(`${S.age}번째 생일. 작은 케이크에 초를 꽂았다.`);
+    save(); render();
+    await showModal(`${S.age}살 생일`, `<p>${esc(josa(S.name, '이', '가'))} ${S.age}살이 되었습니다.</p>
+      <p>${birthdayLine(S.age)}</p>${S.age === 12 ? '<p class="speed">이제 별똥별 숲 탐험과 사냥꾼 조수 일을 할 수 있습니다.</p>' :
+        S.age === 13 ? '<p class="speed">주점 서빙, 석공 보조 일을 할 수 있습니다.</p>' : S.age === 14 ? '<p class="speed">귀족 저택 시녀 일을 할 수 있습니다.</p>' :
+        S.age === 15 ? '<p class="speed">무너진 별탑을 탐사할 수 있습니다.</p>' : ''}`, [{ label: '축하해!', primary: true }]);
+    return;
+  }
+  save(); render();
+}
+function birthdayLine(age) {
+  const top = topStat();
+  return {
+    11: '"아빠, 나 키 컸죠?" 문틀에 눈금을 새겨 달라고 조릅니다.',
+    12: '요즘 부쩍 혼자 생각에 잠기는 일이 늘었습니다.',
+    13: `동네 사람들이 "${SN[top]}이(가) 남다른 아이"라고 수군댑니다.`,
+    14: '거울 앞에 서 있는 시간이 길어졌습니다.',
+    15: '이제 제법 어른스러운 말투를 씁니다.',
+    16: '"나중에 뭐가 될지, 조금은 알 것 같아요."',
+    17: '마지막 한 해. 그녀가 걸어갈 길이 거의 보입니다.',
+  }[age] || '';
+}
+function topStat() {
+  return STATS.map(([k]) => k).sort((a, b) => S.stats[b] - S.stats[a])[0];
+}
+
+async function festival() {
+  const opts = Object.entries(CONTESTS).map(([k, c]) => ({ label: c.name, value: k, primary: false }));
+  opts.push({ label: '구경만 한다', value: null });
+  const choice = await showModal('추수제가 열렸다!', `<p>광장에 등불이 걸리고 사방에서 음악이 흘러나옵니다. 올해는 어느 대회에 나가볼까요?</p>
+    <p class="speed">무술: 전투·근력 / 미의 경연: 매력·기품 / 요리: 가사·감성 / 예술제: 감성·지능</p>`, opts);
+  if (!choice) { apply({ stress: -10 }); log('추수제를 구경하며 실컷 놀았다.'); refreshSide({ stress: -10 }); return; }
+  const c = CONTESTS[choice];
+  const mine = Math.round(c.stat(S.stats) * (0.85 + Math.random() * 0.3));
+  const base = 45 + (S.age - 10) * 48;
+  const rivals = RIVALS.slice().sort(() => Math.random() - 0.5).slice(0, 4)
+    .map(n => ({ n, s: Math.round(base * (0.6 + Math.random() * 0.75)) }));
+  const all = [...rivals, { n: S.name, s: mine, me: true }].sort((a, b) => b.s - a.s);
+  const rank = all.findIndex(x => x.me) + 1;
+  let d = {}, msg;
+  if (rank === 1) { d = { gold: 300, ...c.bonus, stress: -5 }; S.wins[choice] = (S.wins[choice] || 0) + 1; msg = `<b>우승!</b> ${c.praise}`; }
+  else if (rank === 2) { d = { gold: 100, stress: 2 }; msg = '아쉬운 준우승. 그래도 상금을 받았다.'; }
+  else { d = { stress: 6 }; msg = `${rank}위. 분해서 밤새 베개를 적셨다.`; }
+  apply(d); log(`${c.name} ${rank}위.`); refreshSide(d);
+  await showModal(c.name + ' 결과', `<div class="rank">${all.map((x, i) => `<div class="${x.me ? 'me' : ''}"><span>${i + 1}위 ${esc(x.n)}</span><span>${x.s}점</span></div>`).join('')}</div>
+    <p>${msg}</p>${deltaChips(d)}`);
+}
+
+/* ============ 엔딩 ============ */
+function decideEnding() {
+  const s = S.stats, w = S.wins, n = esc(S.name);
+  const totalWins = Object.values(w).reduce((a, b) => a + b, 0);
+  const E = [
+    { ok: s.ele >= 380 && s.int >= 300 && s.cha >= 320 && s.mor >= 250, t: '별의 왕비', d: `무도회에서 ${josa(n, '을', '를')} 본 왕세자가 청혼했다. 사람들은 하늘에서 내려온 왕비라 부르며, ${n}의 다스림 아래 왕국은 오래도록 평화로웠다.` },
+    { ok: s.com >= 420 && s.str >= 280, t: '왕국 기사단장', d: `아버지의 낡은 검을 이어받은 ${josa(n, '은', '는')} 최연소 기사단장이 되었다. 국경의 마물들은 별 모양 문장을 보기만 해도 달아났다.` },
+    { ok: s.mag >= 420 && s.int >= 300, t: '궁정 대마법사', d: `${josa(n, '은', '는')} 별의 언어를 읽는 단 한 사람이 되었다. 밤마다 탑 꼭대기에서 고향 별과 이야기를 나눈다고 한다.` },
+    { ok: s.mor >= 420 && s.mag >= 180, t: '신전의 성녀', d: `아픈 이들의 손을 잡아주던 ${josa(n, '은', '는')} 성녀로 추대되었다. 그녀가 지나간 길에는 늘 작은 빛이 남았다.` },
+    { ok: s.int >= 430, t: '왕립 학술원 학자', d: `${josa(n, '은', '는')} 유성의 궤도를 계산한 논문으로 학계를 뒤흔들었다. 언젠가 자신이 온 별을 찾아내겠다고 한다.` },
+    { ok: s.sen >= 420, t: '이름난 화가', d: `${n}의 밤하늘 그림은 왕궁 회랑에 걸렸다. 그림 속 별들은 보는 사람마다 다른 이야기를 속삭인다.` },
+    { ok: s.cha >= 420, t: '무대 위의 별', d: `${josa(n, '은', '는')} 수도 대극장의 주연 무희가 되었다. 공연이 있는 밤이면 표를 구하려는 줄이 광장을 한 바퀴 돌았다.` },
+    { ok: s.house >= 420, t: '왕궁 요리장', d: `${n}의 수프 한 그릇에 왕도 웃음을 터뜨렸다. 왕궁 주방은 이제 그녀의 작은 왕국이다.` },
+    { ok: S.gold >= 6000, t: '시장 거리의 거상', d: `차곡차곡 모은 돈으로 가게를 연 ${josa(n, '은', '는')} 몇 년 만에 왕국 제일의 상단을 이끌게 되었다.` },
+    { ok: s.com >= 260 && s.hp >= 220, t: '떠돌이 모험가', d: `${josa(n, '은', '는')} 배낭 하나를 메고 길을 떠났다. 가끔 먼 나라의 이상한 기념품이 담긴 편지가 도착한다.` },
+    { ok: s.mor <= 40 && S.stress >= 55, t: '뒷골목의 두목', d: `언제부턴가 ${josa(n, '은', '는')} 밤늦게 들어오지 않았다. 이제 항구 뒷골목에서 그녀의 이름을 모르는 사람은 없다.` },
+    { ok: totalWins >= 4, t: '추수제의 전설', d: `추수제 우승만 ${totalWins}번. ${josa(n, '은', '는')} 축제의 상징이 되어 매년 개막식에서 첫 등불을 밝힌다.` },
+  ];
+  const hit = E.find(e => e.ok);
+  if (hit) return hit;
+  const top = topStat();
+  return { t: '마을의 평범한 아가씨', d: `${josa(n, '은', '는')} 특별한 무언가가 되지는 않았지만, 마을 사람 누구에게나 사랑받는 아가씨로 자랐다. 특히 ${SN[top]}만큼은 누구에게도 지지 않는다. 무엇보다, 매일 저녁 당신과 같은 식탁에 앉는다.` };
+}
+function renderEnding(app) {
+  const e = decideEnding();
+  const wins = Object.entries(S.wins).map(([k, v]) => `${CONTESTS[k].name} 우승 ${v}회`).join(', ');
+  app.innerHTML = `
+  <div class="title-screen">
+    <span class="speed">왕국력 ${S.year}년 봄 · ${esc(S.name)} 18살</span>
+    <div class="portrait">${portrait(S)}</div>
+    <h1 class="ending-title">${e.t}</h1>
+    <p class="lead">${e.d}</p>
+    <div class="final-stats">${STATS.map(([k, n]) => `<div><span>${n}</span><b>${S.stats[k]}</b></div>`).join('')}
+      <div><span>소지금</span><b>${S.gold}</b></div></div>
+    ${wins ? `<p class="speed">${wins}</p>` : ''}
+    <button class="btn primary" id="againBtn">새로운 아이와 다시 시작</button>
+  </div>`;
+  $('#againBtn').onclick = () => { clearSave(); S = null; ui.screen = 'title'; render(); };
+}
+
+/* ============ 부팅 ============ */
+function start(data) {
+  if (data && data.S) { S = data.S; ui.screen = data.screen === 'ending' ? 'ending' : (data.S ? 'game' : 'title'); }
+  render();
+}
+window.claude?.hot?.snapshot?.(() => ({ S, screen: ui.screen }));
+window.claude?.hot?.ready ? window.claude.hot.ready(start) : start(window.claude?.hot?.data ?? {});
+</script>
+
+</body>
+</html>
